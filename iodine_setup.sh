@@ -6,10 +6,28 @@ NORMAL="\e[0m"
 BLUE="\e[34m"
 RED="\e[31m"
 GREEN="\e[32m"
+conf="$(pwd)/iod.conf"
+gateway=""
+domain=""
+port=""
+username=""
+password=""
 
 help () {
-    echo "Usage: iodined_tun.sh domain [gateway]"
+    echo "Usage: iodined_tun.sh [-c conf_file] [-u username] [-d domain] [-g gateway] [-p port]"
     exit
+}
+
+readconf () {
+    if [[ !(-f "$conf") ]]; then
+        echo -e "${BOLD}${RED}[!] Error opening configuration file${NORMAL}"
+        exit 1
+    fi
+    [[ -z $port ]] && port=$(cat $conf | grep "port" | awk '{print $2}')
+    [[ -z $gateway ]] && gateway=$(cat $conf | grep "gateway" | awk '{print $2}')
+    [[ -z $username ]] && username=$(cat $conf | grep "username" | awk '{print $2}')
+    [[ -z $domain ]] && domain=$(cat $conf | grep "domain" | awk '{print $2}')
+    password=$(cat $conf | grep "password" | awk '{print $2}')
 }
 
 check_iodine () {
@@ -37,14 +55,17 @@ set_gateway () {
 
 setup_proxy () {
     echo -e "$GRAY"
-    ssh -o "StrictHostKeyChecking=no" -f -N -C -D 1234 "root@$gateway"
+    ssh -o "StrictHostKeyChecking=no" -f -N -C -D 1234 "$username@$gateway"
     echo -e "$NORMAL"
-    echo -ne "${BOLD}${GREEN}[+] SOCKS5 proxy running on port ${BLUE}1243${NORMAL}"
+    echo -ne "${BOLD}${GREEN}[+] SOCKS5 proxy running on port ${BLUE}${port}${NORMAL}"
 }
 
 start_iodine () {
     [[ -z "$domain" ]] && help
-    read -s -p "Enter tunnel password: " password
+    [[ -z "$port" ]] && help
+    [[ -z "$username" ]] && help
+    [[ -z "$gateway" ]] && help
+    [[ -z "$password" ]] && read -s -p "Enter tunnel password: " password
     echo
     echo -e "\n${BOLD}Starting ${BLUE}iodine${NORMAL}${BOLD}...${NORMAL}"
     echo -e "$GRAY"
@@ -57,7 +78,7 @@ start_iodine () {
         echo -e "${BOLD}${RED}[!] An error occured while starting ${BLUE}iodine${NORMAL}"
         exit
     fi
-    [[ -z "$gateway" ]] && set_gateway
+    [[ "$gateway"=="auto" ]] && set_gateway
     ping_gateway
     setup_proxy
 }
@@ -66,7 +87,7 @@ stop_iodine () {
     echo -e "\n${BOLD}Stopping ${BLUE}iodine${NORMAL}${BOLD}...${NORMAL}"
     killall iodine && sleep 1
     echo -e "${BOLD}Stopping ${BLUE}SOCKS5 proxy${NORMAL}${BOLD}...${NORMAL}"
-    ps -ef | grep "ssh -o StrictHostKeyChecking=no -f -N -C -D 1234" | head -n 1 | awk '{print $2}' | xargs kill
+    ps -ef | grep "ssh -o StrictHostKeyChecking=no -f -N -C -D $port" | head -n 1 | awk '{print $2}' | xargs kill
     check_iodine
     if $running; then
         echo -e "\n${BOLD}${RED}[!] ${BLUE}Iodine${RED} was not stopped successfully${NORMAL}"
@@ -76,12 +97,23 @@ stop_iodine () {
     fi
 }
 
+while getopts ':c:u:d:g:p:' flag; do
+    case "${flag}" in
+        c) conf="${OPTARG}" ;;
+        u) username="${OPTARG}" ;;
+        d) files="${OPTARG}" ;;
+        g) gateway="${OPTARG}" ;;
+        p) port="${OPTARG}" ;;
+        *) help ;;
+    esac
+done
+
+readconf
+
 check_iodine
 if $running; then
     stop_iodine
 else
-    domain="$1"
-    gateway="$2"
     start_iodine
 fi
 
