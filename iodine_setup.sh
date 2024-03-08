@@ -14,7 +14,7 @@ username=""
 password=""
 
 help () {
-    echo "Usage: iodined_tun.sh [-c conf_file] [-u username] [-d domain] [-g gateway] [-p port]"
+    echo "Usage: iodined_setup.sh [-c conf_file] [-u username] [-d domain] [-g gateway] [-p port]"
     exit
 }
 
@@ -55,9 +55,10 @@ set_gateway () {
 
 setup_proxy () {
     echo -e "$GRAY"
-    ssh -o "StrictHostKeyChecking=no" -f -N -C -D 1234 "$username@$gateway"
+    ssh -o "StrictHostKeyChecking=no" -f -N -C -D $port "$username@$gateway"
     echo -e "$NORMAL"
     echo -ne "${BOLD}${GREEN}[+] SOCKS5 proxy running on port ${BLUE}${port}${NORMAL}"
+    echo
 }
 
 start_iodine () {
@@ -93,7 +94,7 @@ stop_iodine () {
         echo -e "\n${BOLD}${RED}[!] ${BLUE}Iodine${RED} was not stopped successfully${NORMAL}"
         exit
     else
-        echo -e "\n${BOLD}${GREEN}[+] ${BLUE}Iodine${GREEN} stopped successfully"
+        echo -e "\n${BOLD}${GREEN}[+] ${BLUE}Iodine${GREEN} stopped successfully${NORMAL}"
     fi
 }
 
